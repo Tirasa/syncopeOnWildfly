@@ -1,0 +1,81 @@
+services:
+   db:
+     image: postgres:17-alpine
+     restart: always
+     environment:
+       POSTGRES_DB: syncope
+       POSTGRES_USER: syncope
+       POSTGRES_PASSWORD: syncope
+
+   syncope:
+     depends_on:
+       - db
+     image: quay.io/wildfly/wildfly:38.0.1.Final-jdk21
+     ports:
+       - "8080:8080"
+     restart: always
+     environment:
+       JAVA_OPTS: "-Djava.security.egd=file:/dev/./urandom -Dsyncope.conf.dir=/opt/syncope/conf -Dsyncope.connid.location=file:/opt/syncope/bundles"
+       SPRING_PROFILES_ACTIVE: docker,widlfly
+       DB_URL: jdbc:postgresql://db:5432/syncope?stringtype=unspecified
+       DB_USER: syncope
+       DB_PASSWORD: syncope
+       DB_POOL_MAX: 20
+       DB_POOL_MIN: 5
+       OPENJPA_REMOTE_COMMIT: sjvm
+       KEYMASTER_ADDRESS: http://localhost:8080/syncope/rest/keymaster
+       KEYMASTER_USERNAME: anonymous
+       KEYMASTER_PASSWORD: anonymousKey
+       SERVICE_DISCOVERY_ADDRESS: http://syncope:8080/syncope/rest/
+       ANONYMOUS_USER: anonymous
+       ANONYMOUS_KEY: anonymousKey
+     volumes:
+       - ./core/target/classes:/opt/syncope/conf:ro
+       - ./core/target/bundles:/opt/syncope/bundles:ro
+       - ./core/target/syncope.war:/opt/jboss/wildfly/standalone/deployments/syncope.war:ro
+     post_start:
+       - command: ["sh", "-c", "touch /opt/jboss/wildfly/standalone/deployments/syncope.war.dodeploy"]
+
+   syncope-console:
+     depends_on:
+       - syncope
+     image: quay.io/wildfly/wildfly:38.0.1.Final-jdk21
+     ports:
+       - "28080:8080"
+     restart: always
+     environment:
+       JAVA_OPTS: "-Djava.security.egd=file:/dev/./urandom -Dsyncope.conf.dir=/opt/syncope/conf"
+       SPRING_PROFILES_ACTIVE: docker
+       KEYMASTER_ADDRESS: http://syncope:8080/syncope/rest/keymaster
+       KEYMASTER_USERNAME: anonymous
+       KEYMASTER_PASSWORD: anonymousKey
+       SERVICE_DISCOVERY_ADDRESS: http://syncope-console:8080/syncope-console/
+       ANONYMOUS_USER: anonymous
+       ANONYMOUS_KEY: anonymousKey
+     volumes:
+       - ./console/target/classes:/opt/syncope/conf:ro
+       - ./console/target/syncope-console.war:/opt/jboss/wildfly/standalone/deployments/syncope-console.war
+     post_start:
+       - command: ["sh", "-c", "touch /opt/jboss/wildfly/standalone/deployments/syncope-console.war.dodeploy"]
+
+   syncope-enduser:
+     depends_on:
+       - syncope
+     image: quay.io/wildfly/wildfly:38.0.1.Final-jdk21
+     ports:
+       - "38080:8080"
+     restart: always
+     environment:
+       JAVA_OPTS: "-Djava.security.egd=file:/dev/./urandom -Dsyncope.conf.dir=/opt/syncope/conf"
+       SPRING_PROFILES_ACTIVE: docker
+       KEYMASTER_ADDRESS: http://syncope:8080/syncope/rest/keymaster
+       KEYMASTER_USERNAME: anonymous
+       KEYMASTER_PASSWORD: anonymousKey
+       SERVICE_DISCOVERY_ADDRESS: http://syncope-enduser:8080/syncope-enduser/
+       ANONYMOUS_USER: anonymous
+       ANONYMOUS_KEY: anonymousKey
+     volumes:
+       - ./enduser/target/classes:/opt/syncope/conf:ro
+       - ./enduser/target/syncope-enduser.war:/opt/jboss/wildfly/standalone/deployments/syncope-enduser.war
+     post_start:
+       - command: ["sh", "-c", "touch /opt/jboss/wildfly/standalone/deployments/syncope-enduser.war.dodeploy"]
