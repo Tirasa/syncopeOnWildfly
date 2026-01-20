@@ -20,7 +20,7 @@ $ mvn clean package
 $ docker compose up
 </pre>
 
-## test ##
+### run ##
 
  1. Syncope Core is available at http://localhost:8080/syncope/
  1. Syncope Console is available at http://localhost:28080/syncope-console/
